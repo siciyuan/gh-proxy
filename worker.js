@@ -18,7 +18,7 @@ const disabled_paths = [
 ]
 
 // 教程页URL
-const tutorial_page = 'https://world123.top/gh-proxy'
+const tutorial_page = 'https://github.world123.top/gh-proxy/'
 
 addEventListener('fetch', event => {
   event.respondWith(fetchAndApply(event.request))
