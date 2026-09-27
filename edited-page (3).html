@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>GitHub 下载加速</title>
+<style>
+  * { box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  body {
+    background: linear-gradient(145deg, #f0f4fe 0%, #d9e2f0 100%);
+    min-height: 100vh; margin: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .card {
+    background: rgba(255,255,255,0.94);
+    border-radius: 28px;
+    padding: 28px 24px;
+    max-width: 560px; width: 100%;
+    box-shadow: 0 25px 40px -12px rgba(0, 20, 40, 0.3);
+    border: 1px solid rgba(255,255,255,0.8);
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 6px 0; color: #1b2a4e; }
+  .sub { color: #5b6d90; font-size: 0.85rem; margin: 0 0 20px 0; line-height: 1.5; }
+  label { display: block; font-weight: 600; font-size: 0.78rem; color: #1f2b48; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+  input[type="url"], input[type="text"] {
+    width: 100%;
+    border: 1.5px solid #d0d9e8;
+    border-radius: 60px;
+    padding: 13px 18px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: 0.2s;
+    background: #fff;
+  }
+  input:focus { border-color: #3f6ae0; box-shadow: 0 0 0 4px rgba(63,106,224,0.12); }
+
+  .mode-tabs {
+    display: flex; gap: 6px;
+    background: #eef2f9;
+    padding: 5px; border-radius: 60px;
+    margin: 18px 0 16px 0;
+  }
+  .mode-tab {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: transparent;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: #4b587c;
+    cursor: pointer;
+    transition: 0.2s;
+    font-family: inherit;
+  }
+  .mode-tab.active {
+    background: white;
+    color: #1b2a4e;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  }
+
+  .node-list {
+    display: flex; flex-direction: column; gap: 8px;
+    max-height: 240px; overflow-y: auto;
+    padding-right: 4px;
+    margin-bottom: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .node {
+    display: flex; align-items: center; gap: 10px;
+    background: #f7f9fe;
+    border: 2px solid transparent;
+    border-radius: 14px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .node:hover { background: #eef2fb; }
+  .node.selected { border-color: #3f6ae0; background: #eaf0ff; }
+  .node .dot {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 2px solid #b7c4e0;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: white;
+  }
+  .node.selected .dot { border-color: #3f6ae0; }
+  .node.selected .dot::after {
+    content: ''; width: 7px; height: 7px;
+    border-radius: 50%; background: #3f6ae0;
+  }
+  .node.custom .dot { border-color: #f59e0b; }
+  .node.custom.selected .dot { border-color: #3f6ae0; }
+  .node.custom.selected .dot::after { background: #3f6ae0; }
+  .node .name {
+    flex: 1;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.82rem;
+    color: #1f2b48;
+    word-break: break-all;
+  }
+  .node .del {
+    background: transparent;
+    border: none;
+    color: #b0bdd4;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    line-height: 1;
+    font-family: inherit;
+  }
+  .node .del:hover { color: #e05a5a; background: #ffe9e9; }
+
+  .add-row {
+    display: flex; gap: 8px; margin-bottom: 12px;
+  }
+  .add-row input { flex: 1; }
+  .add-row button {
+    background: #eef2f9;
+    border: none;
+    color: #1f2e54;
+    padding: 0 18px;
+    border-radius: 60px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: 0.15s;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .add-row button:hover { background: #dde5f3; }
+
+  .toolbar {
+    display: flex; gap: 8px; margin-bottom: 12px;
+  }
+  .tool-btn {
+    flex: 1;
+    background: #eef2f9;
+    border: none;
+    color: #1f2e54;
+    padding: 10px 4px;
+    border-radius: 60px;
+    font-weight: 600;
+    font-size: 0.78rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: 0.15s;
+  }
+  .tool-btn:hover { background: #dde5f3; }
+
+  .download-btn {
+    display: block;
+    width: 100%;
+    background: #1f2e54;
+    color: white;
+    border: none;
+    border-radius: 60px;
+    padding: 15px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.15s;
+    box-shadow: 0 8px 18px -8px rgba(20,40,80,0.5);
+    user-select: none;
+    font-family: inherit;
+  }
+  .download-btn:hover { background: #2b3f6e; }
+  .download-btn:active { transform: scale(0.99); }
+  .download-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .hint {
+    font-size: 0.72rem;
+    color: #8f9db9;
+    margin-top: 14px;
+    text-align: center;
+    line-height: 1.6;
+  }
+  .hint .safety {
+    color: #6b7a95;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #dde5f3;
+    display: block;
+  }
+
+  .modal-mask {
+    position: fixed; inset: 0;
+    background: rgba(0,20,40,0.45);
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 20px;
+    z-index: 1000;
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+  .modal-mask.show { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 20px;
+    padding: 22px;
+    max-width: 480px; width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 40px -12px rgba(0,20,40,0.4);
+  }
+  .modal h3 { margin: 0 0 12px 0; font-size: 1.05rem; color: #1b2a4e; }
+  .modal textarea {
+    width: 100%; height: 160px;
+    border: 1.5px solid #d0d9e8;
+    border-radius: 12px;
+    padding: 12px;
+    font-family: 'SF Mono', monospace;
+    font-size: 0.72rem;
+    resize: vertical; outline: none;
+    color: #1f2b48; background: #f7f9fe;
+    line-height: 1.5;
+  }
+  .modal textarea:focus { border-color: #3f6ae0; }
+  .modal-note {
+    font-size: 0.78rem;
+    color: #5b6d90;
+    margin: 8px 0 0 0;
+    line-height: 1.7;
+    text-align: left;
+  }
+  .modal-note ol { padding-left: 20px; margin: 6px 0; }
+  .modal-note ul { padding-left: 18px; margin: 0 0 10px 0; }
+  .modal-note li { margin-bottom: 4px; }
+  .modal-note code {
+    background: #f0f4fe;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: #2b3b6b;
+  }
+  .modal-note .section-title {
+    margin: 12px 0 6px 0;
+    font-weight: 600;
+    color: #1b2a4e;
+    font-size: 0.82rem;
+  }
+  .modal-note .warn {
+    background: #fff7e6;
+    border-left: 3px solid #f59e0b;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.76rem;
+    color: #7a4a00;
+    margin: 8px 0 12px 0;
+    line-height: 1.6;
+  }
+  .modal-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .modal-actions button {
+    flex: 1;
+    min-width: 80px;
+    border: none; padding: 11px;
+    border-radius: 60px;
+    font-weight: 600; font-size: 0.82rem;
+    cursor: pointer; font-family: inherit;
+    transition: 0.15s;
+  }
+  .modal-actions button.primary { background: #1f2e54; color: white; }
+  .modal-actions button.primary:hover { background: #2b3f6e; }
+  .modal-actions button.secondary { background: #eef2f9; color: #1f2e54; }
+  .modal-actions button.secondary:hover { background: #dde5f3; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>GitHub 下载加速</h1>
+  <p class="sub">输入 GitHub 链接，选节点，点下载。节点保存在本地，可导出备份。</p>
+
+  <label for="urlInput">GitHub 原始链接</label>
+  <input type="url" id="urlInput" placeholder="https://github.com/user/repo/releases/download/...">
+
+  <div class="mode-tabs" id="modeTabs">
+    <button class="mode-tab active" data-mode="prefix">前缀加速</button>
+    <button class="mode-tab" data-mode="replace">替换加速</button>
+  </div>
+
+  <label>节点列表</label>
+  <div class="node-list" id="nodeList"></div>
+
+  <div class="add-row">
+    <input type="text" id="newNodeInput" placeholder="https://节点前缀/">
+    <button id="addBtn">添加</button>
+  </div>
+
+  <div class="toolbar">
+    <button class="tool-btn" id="exportBtn">导出配置</button>
+    <button class="tool-btn" id="importBtn">导入配置</button>
+    <button class="tool-btn" id="webVersionBtn">网页版</button>
+  </div>
+
+  <button class="download-btn" id="downloadBtn" disabled>下载</button>
+
+  <div class="toolbar" style="margin-top:12px;">
+    <button class="tool-btn" id="deployTutorialBtn">部署私有节点</button>
+  </div>
+
+  <div class="hint">
+    橙色圆点 = 你自己的自定义节点<br>
+    前缀加速：节点 + 完整链接 · 替换加速：把 github.com 换成节点域名
+    <span class="safety">
+      加速节点由第三方提供，下载后请自行核对文件校验值；涉及敏感内容请改用官方网站地址。导入的内容仅保存在本机浏览器，不会上传。
+    </span>
+  </div>
+</div>
+
+<!-- 导出弹窗 -->
+<div class="modal-mask" id="exportModal">
+  <div class="modal">
+    <h3>导出配置</h3>
+    <textarea id="exportText" readonly></textarea>
+    <div class="modal-actions">
+      <button class="secondary" id="copyExportBtn">复制</button>
+      <button class="secondary" id="downloadExportBtn">下载文件</button>
+      <button class="primary" id="closeExportBtn">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 导入弹窗 -->
+<div class="modal-mask" id="importModal">
+  <div class="modal">
+    <h3>导入配置</h3>
+    <textarea id="importText" placeholder="直接粘贴 JSON 配置，或点击下方「从剪贴板读取」/「选择文件」"></textarea>
+    <p class="modal-note">导入内容仅保存在本机浏览器，不会上传到任何服务器。</p>
+    <div class="modal-actions">
+      <button class="secondary" id="pasteClipboardBtn">从剪贴板读取</button>
+      <button class="secondary" id="chooseFileBtn">选择文件</button>
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" id="cancelImportBtn">取消</button>
+      <button class="primary" id="confirmImportBtn">确认导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 部署教程弹窗 -->
+<div class="modal-mask" id="deployModal">
+  <div class="modal">
+    <h3>部署私有加速节点</h3>
+    <div class="modal-note">
+      <p style="margin:0 0 10px 0;">
+        用一个 Cloudflare Workers 免费部署你自己的代理节点，只有你一个人用，更稳定也更私密。
+      </p>
+
+      <div class="warn">
+        ⚠️ <strong>国内用户必读</strong><br>
+        Cloudflare Workers 的默认域名 <code>xxx.workers.dev</code> 在国内已被 DNS 污染，无法直接访问。必须绑定你自己的域名才能在国内正常使用。
+      </div>
+
+      <div class="section-title">📌 第一步：获取免费域名</div>
+      <p style="margin:0 0 8px 0;font-size:0.76rem;">
+        如果你已经有域名，可以直接跳到第二步。如果没有，以下平台可以免费注册二级域名，并且都支持托管到 Cloudflare：
+      </p>
+      <ul style="font-size:0.76rem;">
+        <li><strong>katabump.com</strong> — 后缀 <code>kdns.fr</code>，注册即永久，无需绑卡，在 PSL 列表中，支持 Cloudflare 托管</li>
+        <li><strong>dnshe.com</strong> — 后缀 <code>de5.net</code>、<code>cc.cd</code>、<code>us.ci</code>、<code>bot.cd</code> 等，免费注册，支持 Cloudflare 托管</li>
+        <li><strong>digitalplat.org</strong> — 后缀 <code>dpdns.org</code>、<code>qzz.io</code> 等，支持 Cloudflare 托管</li>
+        <li><strong>nic.eu.org</strong> — 老牌免费域名，审核较慢但稳定</li>
+        <li><strong>gv.uy</strong> — 后缀 <code>gv.uy</code>，运维活跃，支持 Cloudflare 托管</li>
+      </ul>
+      <p style="margin:0 0 10px 0;font-size:0.72rem;color:#8f9db9;">
+        建议注册前先到 publicsuffix.org 查一下该后缀是否在 PSL 列表中，在列表里的才能正常托管到 Cloudflare。
+      </p>
+
+      <div class="section-title">📌 第二步：把域名托管到 Cloudflare</div>
+      <ol style="font-size:0.76rem;">
+        <li>登录 Cloudflare，点击「添加站点」，输入你的域名</li>
+        <li>选择免费套餐，按提示到域名注册商处修改 NS 记录</li>
+        <li>等待 Cloudflare 完成域名验证（通常几分钟到几小时）</li>
+      </ol>
+
+      <div class="section-title">📌 第三步：部署 Worker 并绑定域名</div>
+      <ol style="font-size:0.76rem;">
+        <li>进入 Cloudflare 的「Workers & Pages」，创建一个 Worker</li>
+        <li>把仓库里的 <code>worker.js</code> 代码粘贴到编辑器，保存并部署</li>
+        <li>进入该 Worker 的「设置」→「触发器」→「自定义域」</li>
+        <li>输入你托管在 Cloudflare 的域名，等待证书签发</li>
+        <li>完成后，用 <code>https://你的域名/https://github.com/...</code> 即可访问</li>
+      </ol>
+
+      <p style="margin:10px 0 0 0;font-size:0.72rem;color:#8f9db9;">
+        仓库地址：github.com/siciyuan/gh-proxy
+      </p>
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" id="openKatabumpBtn">katabump</button>
+      <button class="secondary" id="openDnsheBtn">dnshe</button>
+      <button class="primary" id="openRepoBtn">打开仓库</button>
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" id="closeDeployBtn" style="flex:1;">关闭</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="importFile" accept=".json,application/json" style="display:none">
+
+<script>
+(function() {
+  // ============ 默认节点 ============
+  const DEFAULT_PREFIX = [
+    'https://ghf.无名氏.top/',
+    'https://gh.b52m.cn/',
+    'https://git.tangbai.cc/',
+    'https://github.dpik.top/',
+    'https://gh.halonice.com/',
+    'https://gitproxy.mrhjx.cn/',
+    'https://github.cnxiaobai.com/',
+    'https://www.5555.cab/',
+    'https://github.geekery.cn/',
+    'https://gh.monlor.com/',
+    'https://ghproxy.imciel.com/',
+    'https://gh-proxy.com/',
+    'https://ghproxy.net/',
+    'https://ghproxy.homeboyc.cn/',
+    'https://gh.llkk.cc/',
+    'https://gh.zwy.one/',
+    'https://git.yylx.win/',
+    'https://mirror.yearnstudio.cn/',
+    'https://gh.ddlc.top/',
+    'https://github.xxlab.tech/',
+    'https://gh.1k.ink/',
+    'https://ghproxy.monkeyray.net/',
+    'https://g.blfrp.cn/',
+    'https://github.mlmle.cn/',
+    'https://gh.xxooo.cf/',
+    'https://fastgit.cc/',
+    'https://github.boringhex.top/',
+    'https://xiaomo-station.top/',
+    'https://gh.con.sh/',
+    'https://y.whereisdoge.work/',
+    'https://tvv.tw/',
+    'https://gh.catmak.name/',
+    'https://ghproxy.cxkpro.top/',
+    'https://gh.padao.fun/',
+    'https://github-proxy.memory-echoes.cn/',
+    'https://gh-proxy.net/',
+    'https://gh.jasonzeng.dev/',
+    'https://gh.jdck.fun/',
+    'https://hub.ddayh.com/',
+    'https://hub.gitmirror.com/',
+    'https://ghproxy.xiaopa.cc/',
+    'https://ghproxy.cfd/',
+    'https://ghproxy.cc/',
+    'https://cf.ghproxy.cc/',
+    'https://ghproxy.1888866.xyz/',
+    'https://ghfast.top/',
+    'https://github.limoruirui.com/',
+    'https://github.tbedu.top/',
+    'https://ghproxy.vansour.top/',
+    'https://ghproxy.xzhouqd.com/',
+    'https://github.ruojian.space/',
+    'https://ghp.keleyaa.com/',
+    'https://github-proxy.lixxing.top/',
+    'https://gp.871201.xyz/',
+    'https://gh.wsmdn.dpdns.org/',
+    'https://ggg.clwap.dpdns.org/',
+    'https://gh.dpik.top/',
+    'https://gp.zkitefly.eu.org/',
+    'https://gh.bugdey.us.kg/',
+    'https://code-hub-hk.freexy.top/',
+    'https://github.chenc.dev/',
+    'https://ghfile.geekertao.top/',
+    'https://kenyu.ggff.net/',
+    'https://gh.nxnow.top/',
+    'https://github.bullb.net/',
+    'https://gitproxy.197545.xyz/',
+    'https://gitproxy.127731.xyz/',
+    'https://gitproxy1.127731.xyz/',
+    'https://jiashu.1win.eu.org/',
+    'https://ghproxy.mf-dust.dpdns.org/',
+    'https://j.1lin.dpdns.org/',
+    'https://proxy.baguoyuyan.com/',
+    'https://github.1ms.xx.kg/',
+    'https://gh.198962.xyz/',
+    'https://github.880824.xyz/',
+    'https://ghps.cc/',
+    'https://30006000.xyz/',
+    'https://github.tianrld.top/',
+    'https://getgit.love8yun.eu.org/',
+    'https://github.788787.xyz/',
+    'https://ghm.078465.xyz/',
+    'https://github-proxy.com/',
+    'https://proxy.yaoyaoling.net/',
+    'https://ghproxy.sakuramoe.dev/',
+    'https://ghproxy.053000.xyz/',
+    'https://gh.chjina.com/',
+    'https://git.zeas.cc/',
+    'https://ghpxy.hwinzniej.top/',
+    'https://gh.echofree.xyz/',
+    'https://github.zzrbk.xyz/',
+    'https://git.669966.xyz/',
+    'https://github.ihnic.com/',
+    'https://gh.996986.xyz/',
+    'https://gh.idayer.com/',
+    'https://github.ednovas.xyz/',
+    'https://gh.chalin.tk/',
+    'https://j.1win.ggff.net/',
+    'https://github.lsdfxdk.nyc.mn/',
+    'https://gh.aaa.team/',
+    'https://github.crdz.eu.org/',
+    'https://gh.shiina-rimo.cafe/',
+    'https://ghproxy.mirror.skybyte.me/',
+    'https://git.40609891.xyz/',
+    'https://github.oterea.top/',
+    'https://gh.noki.icu/',
+    'https://gh.39.al/',
+    'https://ghproxy.cn/',
+    'https://down.npee.cn/',
+    'https://github.kkproxy.dpdns.org/',
+    'https://free.cn.eu.org/',
+    'https://git.951959483.xyz/',
+    'https://git.820828.xyz/',
+    'https://ghproxy.fangkuai.fun/',
+    'https://github.cn86.dev/',
+    'https://github.zjzzy.cloudns.org/',
+    'https://ghb.nilive.top/',
+    'https://gitproxy.click/',
+    'https://proxy.atoposs.com/',
+  ];
+
+  const DEFAULT_REPLACE = [
+    'https://g.guable.us.ci/',
+  ];
+
+  const WEB_VERSION_URL = 'https://yxslc7w4jewwfnsa.aigosite.cn/';
+  const DEPLOY_REPO_URL = 'https://github.com/siciyuan/gh-proxy';
+  const KATABUMP_URL = 'https://dashboard.katabump.com';
+  const DNSHE_URL = 'https://my.dnshe.com';
+
+  const STORAGE_KEY = 'gh_accel_nodes_v2';
+
+  function loadStore() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      if (!data || !Array.isArray(data.prefix) || !Array.isArray(data.replace)) return null;
+      return data;
+    } catch (e) { return null; }
+  }
+
+  function saveStore() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        prefix: store.prefix,
+        replace: store.replace,
+      }));
+    } catch (e) { /* 忽略 */ }
+  }
+
+  const stored = loadStore();
+  const store = {
+    prefix:  stored ? stored.prefix  : [...DEFAULT_PREFIX],
+    replace: stored ? stored.replace : [...DEFAULT_REPLACE],
+  };
+
+  let currentMode = 'prefix';
+  const selectedIndex = { prefix: 0, replace: 0 };
+
+  const urlInput     = document.getElementById('urlInput');
+  const nodeList     = document.getElementById('nodeList');
+  const downloadBtn  = document.getElementById('downloadBtn');
+  const modeTabs     = document.getElementById('modeTabs');
+  const addBtn       = document.getElementById('addBtn');
+  const newNodeInput = document.getElementById('newNodeInput');
+  const exportBtn    = document.getElementById('exportBtn');
+  const importBtn    = document.getElementById('importBtn');
+  const webVersionBtn    = document.getElementById('webVersionBtn');
+  const deployTutorialBtn= document.getElementById('deployTutorialBtn');
+  const exportModal  = document.getElementById('exportModal');
+  const importModal  = document.getElementById('importModal');
+  const deployModal  = document.getElementById('deployModal');
+  const exportText   = document.getElementById('exportText');
+  const importText   = document.getElementById('importText');
+  const copyExportBtn     = document.getElementById('copyExportBtn');
+  const downloadExportBtn = document.getElementById('downloadExportBtn');
+  const closeExportBtn    = document.getElementById('closeExportBtn');
+  const pasteClipboardBtn = document.getElementById('pasteClipboardBtn');
+  const chooseFileBtn     = document.getElementById('chooseFileBtn');
+  const cancelImportBtn   = document.getElementById('cancelImportBtn');
+  const confirmImportBtn  = document.getElementById('confirmImportBtn');
+  const closeDeployBtn    = document.getElementById('closeDeployBtn');
+  const openRepoBtn       = document.getElementById('openRepoBtn');
+  const openKatabumpBtn   = document.getElementById('openKatabumpBtn');
+  const openDnsheBtn      = document.getElementById('openDnsheBtn');
+  const importFile   = document.getElementById('importFile');
+
+  // ============ 工具 ============
+  function currentNodes() { return store[currentMode]; }
+
+  function padSlash(s) {
+    s = s.trim();
+    return s.endsWith('/') ? s : s + '/';
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function isCustomNode(node) {
+    if (currentMode === 'prefix') return !DEFAULT_PREFIX.includes(node);
+    return !DEFAULT_REPLACE.includes(node);
+  }
+
+  function extractGithubPath(raw) {
+    try {
+      const u = new URL(raw);
+      if (u.hostname !== 'github.com' && u.hostname !== 'raw.githubusercontent.com') return null;
+      return u.pathname + u.search + u.hash;
+    } catch (e) { return null; }
+  }
+
+  function buildUrl() {
+    const raw = urlInput.value.trim();
+    if (!raw) return null;
+    try { new URL(raw); } catch (e) { return null; }
+
+    const nodes = currentNodes();
+    const node = nodes[selectedIndex[currentMode]];
+    if (!node) return null;
+
+    if (currentMode === 'prefix') {
+      return padSlash(node) + raw;
+    } else {
+      const path = extractGithubPath(raw);
+      if (path === null) return null;
+      let host = node.trim().replace(/\/+$/, '');
+      if (host.includes('://')) {
+        try { host = new URL(host).hostname; }
+        catch (e) { host = host.replace(/^https?:\/\//, '').split('/')[0]; }
+      }
+      return 'https://' + host + path;
+    }
+  }
+
+  function updateBtn() {
+    const finalUrl = buildUrl();
+    if (finalUrl) {
+      downloadBtn.dataset.url = finalUrl;
+      downloadBtn.disabled = false;
+    } else {
+      downloadBtn.dataset.url = '';
+      downloadBtn.disabled = true;
+    }
+  }
+
+  // ============ 核心：多级降级打开外链，兼容 ToApp / 各种 WebView ============
+  function openExternal(url) {
+    if (!url) return;
+
+    const ua = navigator.userAgent || '';
+    const isToApp = /ToApp|toapp/i.test(ua) || window.location.href.indexOf('toapp') > -1;
+    const isWebView = isToApp
+      || /wv\)|WebView|Android.*Version\/[\d.]+/i.test(ua);
+
+    // 1. 自定义原生桥（ToApp 等打包工具可能注入）
+    try {
+      if (window.Android && typeof window.Android.openUrl === 'function') {
+        window.Android.openUrl(url);
+        return;
+      }
+      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openUrl) {
+        window.webkit.messageHandlers.openUrl.postMessage(url);
+        return;
+      }
+    } catch (e) { /* 继续降级 */ }
+
+    // 2. Capacitor
+    try {
+      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+        window.Capacitor.Plugins.Browser.open({ url: url });
+        return;
+      }
+    } catch (e) { /* 继续降级 */ }
+
+    // 3. Cordova / PhoneGap
+    try {
+      if (window.cordova && window.cordova.InAppBrowser) {
+        window.cordova.InAppBrowser.open(url, '_system');
+        return;
+      }
+    } catch (e) { /* 继续降级 */ }
+
+    // 4. WebView 环境直接用 location.href，兼容性最好
+    if (isWebView) {
+      try {
+        window.location.href = url;
+        return;
+      } catch (e) { /* 继续降级 */ }
+    }
+
+    // 5. 标准浏览器：先 window.open，失败再用 location.href
+    try {
+      const w = window.open(url, '_blank');
+      if (w && !w.closed) return;
+    } catch (e) { /* 继续降级 */ }
+
+    try {
+      window.location.href = url;
+    } catch (e) {
+      alert('无法打开链接，请手动复制：\n' + url);
+    }
+  }
+
+  // ============ 渲染 ============
+  function renderNodes() {
+    const nodes = currentNodes();
+    if (nodes.length === 0) {
+      nodeList.innerHTML = '<div style="text-align:center;padding:20px;color:#8f9db9;font-size:0.85rem;">暂无节点，请在下方添加</div>';
+      return;
+    }
+    nodeList.innerHTML = nodes.map((node, i) => `
+      <div class="node ${i === selectedIndex[currentMode] ? 'selected' : ''} ${isCustomNode(node) ? 'custom' : ''}" data-index="${i}">
+        <div class="dot"></div>
+        <div class="name">${escapeHtml(node)}</div>
+        <button class="del" data-del="${i}" title="删除">✕</button>
+      </div>
+    `).join('');
+
+    nodeList.querySelectorAll('.node').forEach(el => {
+      el.addEventListener('click', (e) => {
+        if (e.target.classList.contains('del')) return;
+        selectedIndex[currentMode] = parseInt(el.dataset.index, 10);
+        renderNodes();
+        updateBtn();
+      });
+    });
+
+    nodeList.querySelectorAll('.del').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.del, 10);
+        if (isNaN(idx)) return;
+        if (!confirm('删除该节点？')) return;
+        currentNodes().splice(idx, 1);
+        if (selectedIndex[currentMode] >= currentNodes().length) {
+          selectedIndex[currentMode] = Math.max(0, currentNodes().length - 1);
+        }
+        saveStore();
+        renderNodes();
+        updateBtn();
+      });
+    });
+  }
+
+  function switchMode(mode) {
+    if (mode !== 'prefix' && mode !== 'replace') return;
+    currentMode = mode;
+    modeTabs.querySelectorAll('.mode-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.mode === mode);
+    });
+    newNodeInput.placeholder = mode === 'prefix' ? 'https://节点前缀/' : 'https://节点域名/';
+    renderNodes();
+    updateBtn();
+  }
+
+  function addNode() {
+    let value = newNodeInput.value.trim();
+    if (!value) return;
+
+    if (currentMode === 'prefix') {
+      value = padSlash(value);
+      if (currentNodes().includes(value)) { alert('该节点已存在'); return; }
+    } else {
+      let host = value;
+      if (host.includes('://')) {
+        try { host = new URL(host).hostname; }
+        catch (e) { host = host.replace(/^https?:\/\//, '').split('/')[0]; }
+      } else {
+        host = host.split('/')[0];
+      }
+      host = host.replace(/\/+$/, '');
+      if (!host) return;
+      value = 'https://' + host + '/';
+      if (currentNodes().includes(value)) { alert('该节点已存在'); return; }
+    }
+
+    currentNodes().push(value);
+    saveStore();
+    newNodeInput.value = '';
+    renderNodes();
+  }
+
+  function openExport() {
+    const data = {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      prefix: store.prefix,
+      replace: store.replace,
+    };
+    exportText.value = JSON.stringify(data, null, 2);
+    exportModal.classList.add('show');
+  }
+
+  function closeExport() { exportModal.classList.remove('show'); }
+
+  function downloadExport() {
+    const json = exportText.value;
+    try {
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'gh-accel-config-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) {
+      alert('下载失败，请使用「复制」按钮手动保存');
+    }
+  }
+
+  async function copyExport() {
+    const json = exportText.value;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(json);
+        alert('已复制到剪贴板');
+        return;
+      }
+    } catch (e) { /* 降级 */ }
+    try {
+      exportText.select();
+      exportText.setSelectionRange(0, 99999);
+      document.execCommand('copy');
+      alert('已复制到剪贴板');
+    } catch (e) {
+      alert('复制失败，请手动选择文本后复制');
+    }
+  }
+
+  function openImport() {
+    importText.value = '';
+    importModal.classList.add('show');
+  }
+
+  function closeImport() { importModal.classList.remove('show'); }
+
+  async function readFromClipboard() {
+    const ok = confirm(
+      '即将读取你剪贴板中的文本，仅用于填充下方的配置文本框。\n\n' +
+      '内容只保存在你本机浏览器，不会上传到任何服务器。\n\n' +
+      '是否继续？'
+    );
+    if (!ok) return;
+
+    if (!navigator.clipboard || !navigator.clipboard.readText) {
+      alert('当前环境不支持剪贴板读取，请手动粘贴或选择文件');
+      return;
+    }
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && text.trim()) {
+        importText.value = text.trim();
+        importText.focus();
+      } else {
+        alert('剪贴板为空');
+      }
+    } catch (e) {
+      alert('无法读取剪贴板（可能未授权），请手动长按粘贴或选择文件');
+    }
+  }
+
+  function handleFilePicked(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      importText.value = e.target.result;
+      importText.focus();
+    };
+    reader.onerror = () => alert('文件读取失败');
+    reader.readAsText(file);
+  }
+
+  function mergeUnique(target, source) {
+    source.forEach(item => {
+      if (typeof item === 'string' && !target.includes(item)) {
+        target.push(item);
+      }
+    });
+  }
+
+  function confirmImport() {
+    const text = importText.value.trim();
+    if (!text) { alert('请先粘贴配置内容，或从剪贴板 / 文件读取'); return; }
+    let data;
+    try { data = JSON.parse(text); }
+    catch (e) { alert('内容不是有效的 JSON'); return; }
+    if (!data || !Array.isArray(data.prefix) || !Array.isArray(data.replace)) {
+      alert('配置格式不正确，需要包含 prefix 和 replace 两个数组');
+      return;
+    }
+
+    const replaceMode = confirm(
+      '点「确定」→ 替换当前节点列表\n' +
+      '点「取消」→ 合并到当前列表（自动去重）'
+    );
+
+    if (replaceMode) {
+      store.prefix  = data.prefix.filter(x => typeof x === 'string').slice();
+      store.replace = data.replace.filter(x => typeof x === 'string').slice();
+    } else {
+      mergeUnique(store.prefix,  data.prefix);
+      mergeUnique(store.replace, data.replace);
+    }
+
+    selectedIndex.prefix = 0;
+    selectedIndex.replace = 0;
+    saveStore();
+    renderNodes();
+    updateBtn();
+    closeImport();
+    alert('导入成功');
+  }
+
+  function openDeployModal() { deployModal.classList.add('show'); }
+  function closeDeployModal() { deployModal.classList.remove('show'); }
+
+  // ============ 事件绑定 ============
+  urlInput.addEventListener('input', updateBtn);
+  urlInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !downloadBtn.disabled) {
+      e.preventDefault();
+      downloadBtn.click();
+    }
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    const url = downloadBtn.dataset.url;
+    if (!url) return;
+    openExternal(url);
+  });
+
+  modeTabs.addEventListener('click', (e) => {
+    const tab = e.target.closest('.mode-tab');
+    if (tab) switchMode(tab.dataset.mode);
+  });
+
+  addBtn.addEventListener('click', addNode);
+  newNodeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); addNode(); }
+  });
+
+  exportBtn.addEventListener('click', openExport);
+  importBtn.addEventListener('click', openImport);
+  webVersionBtn.addEventListener('click', () => openExternal(WEB_VERSION_URL));
+  deployTutorialBtn.addEventListener('click', openDeployModal);
+
+  copyExportBtn.addEventListener('click', copyExport);
+  downloadExportBtn.addEventListener('click', downloadExport);
+  closeExportBtn.addEventListener('click', closeExport);
+  pasteClipboardBtn.addEventListener('click', readFromClipboard);
+  chooseFileBtn.addEventListener('click', () => {
+    importFile.value = '';
+    importFile.click();
+  });
+  cancelImportBtn.addEventListener('click', closeImport);
+  confirmImportBtn.addEventListener('click', confirmImport);
+
+  closeDeployBtn.addEventListener('click', closeDeployModal);
+  openRepoBtn.addEventListener('click', () => openExternal(DEPLOY_REPO_URL));
+  openKatabumpBtn.addEventListener('click', () => openExternal(KATABUMP_URL));
+  openDnsheBtn.addEventListener('click', () => openExternal(DNSHE_URL));
+
+  exportModal.addEventListener('click', (e) => {
+    if (e.target === exportModal) closeExport();
+  });
+  importModal.addEventListener('click', (e) => {
+    if (e.target === importModal) closeImport();
+  });
+  deployModal.addEventListener('click', (e) => {
+    if (e.target === deployModal) closeDeployModal();
+  });
+
+  importFile.addEventListener('change', (e) => {
+    handleFilePicked(e.target.files[0]);
+  });
+
+  renderNodes();
+  updateBtn();
+})();
+</script>
+</body>
+</html>
